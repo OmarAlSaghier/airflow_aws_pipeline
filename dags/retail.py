@@ -20,7 +20,7 @@ REDSHIFT_CONN_ID = 'redshift_conn_id'
 def retail():
     upload_csv_to_aws_s3 = LocalFilesystemToS3Operator(
         task_id='upload_csv_to_aws_s3',
-        filename='/usr/local/airflow/include/dataset/online_retail_small.csv',
+        filename='/usr/local/airflow/include/dataset/online_retail.csv',
         dest_key='online_retail.csv',
         dest_bucket=S3_BUCKET,
         aws_conn_id=AWS_CONN_ID,
@@ -32,20 +32,37 @@ def retail():
         redshift_conn_id=REDSHIFT_CONN_ID,
         sql=f"""
             CREATE TABLE IF NOT EXISTS {REDSHIFT_TABLE} (
-            InvoiceNo INTEGER,
+            InvoiceNo VARCHAR,
             StockCode VARCHAR,
             Description VARCHAR,
             Quantity INTEGER,
-            InvoiceDate DATE,
-            UnitPrice INTEGER,
+            InvoiceDate VARCHAR,
+            UnitPrice FLOAT,
             CustomerID INTEGER,
             Country VARCHAR
             );
         """,
     )
 
+    transfer_s3_to_redshift = S3ToRedshiftOperator(
+        task_id='transfer_s3_to_redshift',
+        aws_conn_id=AWS_CONN_ID,
+        redshift_conn_id=REDSHIFT_CONN_ID,
+        s3_bucket=S3_BUCKET,
+        s3_key='online_retail.csv',
+        schema="PUBLIC",
+        table=REDSHIFT_TABLE,
+        copy_options=[
+            "FORMAT AS CSV ",
+            "DELIMITER AS ','",
+            "QUOTE '\"' ",
+            "IGNOREHEADER 1",
+        ],
+    )
+
 retail()
 
 
-
-
+# airflow tasks test retail upload_csv_to_aws_s3 2023-01-01
+# airflow tasks test retail create_redshift_table 2023-01-01
+# airflow tasks test retail transfer_s3_to_redshift 2023-01-01
